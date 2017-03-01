@@ -17,7 +17,7 @@ extension String {
         }
     }
 
-    public static var escapePrefixAndSuffix = ":" {
+    public fileprivate(set) static var escapePrefixAndSuffix = ":" {
         didSet {
             emojiUnescapeRegExp = createEmojiUnescapeRegExp()
             emojiEscapeRegExp = createEmojiEscapeRegExp()
@@ -26,6 +26,10 @@ extension String {
 
     fileprivate static var emojiUnescapeRegExp = createEmojiUnescapeRegExp()
     fileprivate static var emojiEscapeRegExp = createEmojiEscapeRegExp()
+
+    public static func setEmojiEscapePrefixAndSuffix(_ newEscapeString: String) {
+        escapePrefixAndSuffix = RegexSanitizer.sanitizedString(forString: newEscapeString)
+    }
 
     fileprivate static func createEmojiUnescapeRegExp() -> NSRegularExpression {
         return try! NSRegularExpression(pattern: emojiDictionary.keys.map { "\(escapePrefixAndSuffix)\($0)\(escapePrefixAndSuffix)" } .joined(separator: "|"), options: [])
@@ -65,4 +69,24 @@ extension String {
         return s as String
     }
 
+}
+
+fileprivate class RegexSanitizer {
+
+    static fileprivate let regexCharacterRegExp: NSRegularExpression = createRegexCharacterRegExp()
+
+    fileprivate static func createRegexCharacterRegExp() -> NSRegularExpression {
+        return try! NSRegularExpression(pattern: "[\\.\\+\\*\\?\\[\\]\\^\\$\\(\\)\\{\\}\\|\\\\\\/]", options: [])
+    }
+
+    fileprivate static func sanitizedString(forString original: String) -> String {
+        var sanitizedString = original as NSString
+        let matches = regexCharacterRegExp.matches(in: original, options: [], range: NSMakeRange(0, sanitizedString.length))
+        matches.reversed().forEach { match in
+            let stringAtMatch = sanitizedString.substring(with: match.range)
+            sanitizedString = sanitizedString.replacingCharacters(in: match.range, with: "\\" + stringAtMatch) as NSString
+        }
+
+        return sanitizedString as String
+    }
 }
